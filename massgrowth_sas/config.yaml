@@ -1,0 +1,38 @@
+app:
+  name: "MassGrowth SaaS MVP"
+  version: "0.1.0"
+  mode: "strict" # soft, strict, aggressive (не рекомендуется)
+
+limits:
+  daily:
+    likes: 
+      min: 50
+      max: 150 # Осторожно для новых аккаунтов
+    follows:
+      min: 10
+      max: 30
+    story_views:
+      min: 20
+      max: 60
+    comments: 0 # В MVP отключено для безопасности
+  
+  delays:
+    action_min: 18 # секунд
+    action_max: 90 # секунд
+    extra_delay_chance: 0.3 # 30% шанс дополнительной паузы (эмуляция чтения)
+    extra_delay_time: 60 # секунд
+    
+  errors:
+    max_consecutive_failures: 3
+    ban_pause_hours: 24
+
+proxy:
+  rotation_enabled: true
+  timeout_seconds: 30
+
+targeting:
+  min_followers: 500
+  max_followers: 3000
+  exclude_business: true
+  require_avatar: true
+  require_stories: false # True может замедлить работу из-за доп. запросов
