@@ -328,10 +328,12 @@ async function loadAccounts() {
     document.getElementById('total-accounts').textContent = accounts.length;
 
     const sel = document.getElementById('task-account');
+    const prevVal = sel.value;  // запоминаем текущий выбор
     sel.innerHTML = '<option value="">— выберите аккаунт —</option>';
     accounts.forEach(a => {
       sel.innerHTML += `<option value="${a.id}">@${a.username}</option>`;
     });
+    if (prevVal) sel.value = prevVal;  // восстанавливаем
 
     const list = document.getElementById('accounts-list');
     if (!accounts.length) {
