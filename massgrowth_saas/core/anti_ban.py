@@ -20,20 +20,29 @@ from typing import TYPE_CHECKING, Callable, TypeVar
 
 import structlog
 import yaml
-from instagrapi.exceptions import (
-    ChallengeRequired,
-    FeedbackRequired,
-    LoginRequired,
-    PleaseWaitFewMinutes,
-    RateLimitError,
-    ClientError,
-    ClientConnectionError,
-    ClientJSONDecodeError,
-    BadPassword,
-)
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+
+def _ig_exceptions():
+    """Ленивый импорт исключений instagrapi — избегаем загрузки moviepy при старте."""
+    from instagrapi.exceptions import (
+        ChallengeRequired,
+        FeedbackRequired,
+        LoginRequired,
+        PleaseWaitFewMinutes,
+        RateLimitError,
+        ClientError,
+        ClientConnectionError,
+        ClientJSONDecodeError,
+        BadPassword,
+    )
+    return (
+        ChallengeRequired, FeedbackRequired, LoginRequired,
+        PleaseWaitFewMinutes, RateLimitError, ClientError,
+        ClientConnectionError, ClientJSONDecodeError, BadPassword,
+    )
 
 from db.models import Account, AccountStatus
 
@@ -87,6 +96,12 @@ class AntiBanHandler:
         Raises:
             Не бросает исключений — все обрабатываются внутри.
         """
+        (
+            ChallengeRequired, FeedbackRequired, LoginRequired,
+            PleaseWaitFewMinutes, RateLimitError, ClientError,
+            ClientConnectionError, ClientJSONDecodeError, BadPassword,
+        ) = _ig_exceptions()
+
         try:
             result = func(*args, **kwargs)
             return result, True
@@ -120,7 +135,6 @@ class AntiBanHandler:
             return None, False
 
         except ClientJSONDecodeError as e:
-            # Instagram вернул не-JSON — временный сбой
             self._log.warning("json_decode_error", error=str(e))
             await asyncio.sleep(random.uniform(30, 90))
             return None, False

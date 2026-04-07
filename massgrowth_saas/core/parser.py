@@ -21,9 +21,9 @@ from typing import Generator, TYPE_CHECKING
 
 import structlog
 import yaml
-from instagrapi import Client
-from instagrapi.exceptions import ClientError
-from instagrapi.types import UserShort, User, Media
+if TYPE_CHECKING:
+    from instagrapi import Client
+    from instagrapi.types import UserShort, User, Media
 
 from core.filter import ProfileFilter
 

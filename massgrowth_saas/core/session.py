@@ -21,15 +21,7 @@ import time
 from typing import TYPE_CHECKING
 
 import structlog
-from instagrapi import Client
 from core.crypto import decrypt_password as _fernet_decrypt
-from instagrapi.exceptions import (
-    BadPassword,
-    ChallengeRequired,
-    LoginRequired,
-    TwoFactorRequired,
-    ClientError,
-)
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -156,11 +148,12 @@ class SessionManager:
     # Внутренние методы
     # ──────────────────────────────────────────────────────────────
 
-    def _create_base_client(self, account: Account) -> Client:
+    def _create_base_client(self, account: Account) -> "Client":
         """
         Создаёт базовый Client с настройками прокси и User-Agent.
         НЕ авторизует.
         """
+        from instagrapi import Client
         client = Client()
 
         # Прокси (1 прокси = 1 аккаунт)
@@ -199,9 +192,11 @@ class SessionManager:
             )
             return True
 
-        except LoginRequired:
-            self._log.warning("session_expired", username=account.username)
-            return False
+        except Exception as e:
+            if "LoginRequired" in type(e).__name__ or "login" in str(e).lower():
+                self._log.warning("session_expired", username=account.username)
+                return False
+            raise
 
         except Exception as e:
             self._log.warning("session_check_failed", error=str(e))
@@ -218,6 +213,11 @@ class SessionManager:
         """
         # Задержка перед логином (имитация открытия приложения)
         time.sleep(random.uniform(3, 8))
+
+        from instagrapi.exceptions import (
+            BadPassword, ChallengeRequired, LoginRequired,
+            TwoFactorRequired, ClientError,
+        )
 
         self._log.info("login_attempt", username=username)
         try:

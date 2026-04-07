@@ -20,7 +20,9 @@ from typing import TYPE_CHECKING
 
 import structlog
 import yaml
-from instagrapi.types import UserShort, User
+
+if TYPE_CHECKING:
+    from instagrapi.types import UserShort, User
 
 if TYPE_CHECKING:
     pass
