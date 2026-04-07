@@ -34,7 +34,7 @@ from db.models import (
     Account, AccountStatus, ActionLog, ActionType,
     ActionStatus, DailyLimit, Task, TaskStatus,
 )
-from core.actions import SAFETY_WARNING
+from core.constants import SAFETY_WARNING
 
 logger = structlog.get_logger(__name__)
 

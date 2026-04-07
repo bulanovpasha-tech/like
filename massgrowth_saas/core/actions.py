@@ -23,13 +23,14 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import structlog
-from instagrapi import Client
 
 from core.anti_ban import AntiBanHandler
+from core.constants import SAFETY_WARNING  # noqa: F401 — реэкспортируется
 from core.safety import SafetyController
 from db.models import ActionLog, ActionStatus, ActionType
 
 if TYPE_CHECKING:
+    from instagrapi import Client  # загружается только при type-checking
     from sqlalchemy.orm import Session
 
 logger = structlog.get_logger(__name__)
@@ -57,7 +58,7 @@ class ActionExecutor:
     def __init__(
         self,
         account_id: int,
-        client: Client,
+        client: "Client",
         db: "Session",
         safety: SafetyController,
         anti_ban: AntiBanHandler,
