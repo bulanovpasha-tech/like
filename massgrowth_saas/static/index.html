@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MassGrowth SaaS — Панель управления</title>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a24;
+    --border: #2a2a3a;
+    --accent: #7c6af7;
+    --accent2: #f76ac8;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+  /* Header */
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .logo h1 { font-size: 18px; font-weight: 700; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .logo span { font-size: 12px; color: var(--muted); display: block; margin-top: 1px; }
+  .status-badge { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 20px; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); font-size: 13px; color: var(--green); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* Layout */
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  @media(max-width:720px) { .grid,.grid-3 { grid-template-columns: 1fr; } }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+  .card-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .card-title .icon { font-size: 15px; }
+
+  /* Stat cards */
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; }
+  .stat-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .stat-value { font-size: 28px; font-weight: 700; color: var(--text); }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .stat-card.accent { border-color: rgba(124,106,247,.3); }
+  .stat-card.green { border-color: rgba(34,197,94,.3); }
+  .stat-card.pink { border-color: rgba(247,106,200,.3); }
+
+  /* Progress bar */
+  .progress-wrap { margin-top: 10px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .progress { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .4s; }
+
+  /* Form */
+  .form-group { margin-bottom: 14px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+  input, select { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 10px 12px; font-size: 14px; outline: none; transition: border-color .2s; }
+  input:focus, select:focus { border-color: var(--accent); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all .2s; width: 100%; }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+  .btn-primary:hover { opacity: .9; transform: translateY(-1px); }
+  .btn-danger { background: rgba(239,68,68,.15); color: var(--red); border: 1px solid rgba(239,68,68,.3); }
+  .btn-danger:hover { background: rgba(239,68,68,.25); }
+  .btn-secondary { background: var(--border); color: var(--text); }
+  .btn-secondary:hover { background: #333; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+  /* Account list */
+  .account-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
+  .account-info { display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: #fff; flex-shrink: 0; }
+  .account-name { font-size: 14px; font-weight: 600; }
+  .account-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: rgba(34,197,94,.15); color: var(--green); }
+  .badge-yellow { background: rgba(245,158,11,.15); color: var(--yellow); }
+  .badge-red { background: rgba(239,68,68,.15); color: var(--red); }
+  .badge-purple { background: rgba(124,106,247,.15); color: var(--accent); }
+
+  /* Task log */
+  .log-box { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-family: monospace; font-size: 12px; height: 160px; overflow-y: auto; color: #a0aec0; }
+  .log-line { margin-bottom: 4px; }
+  .log-line.ok { color: var(--green); }
+  .log-line.err { color: var(--red); }
+  .log-line.info { color: var(--accent); }
+
+  /* Toast */
+  .toast-wrap { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 999; }
+  .toast { padding: 12px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; animation: slide-in .3s ease; max-width: 320px; }
+  .toast.success { background: rgba(34,197,94,.15); border: 1px solid rgba(34,197,94,.3); color: var(--green); }
+  .toast.error { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.3); color: var(--red); }
+  @keyframes slide-in { from { transform: translateX(120%); opacity:0 } to { transform: translateX(0); opacity:1 } }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .empty-icon { font-size: 36px; margin-bottom: 10px; }
+
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">🌱</div>
+    <div>
+      <h1>MassGrowth SaaS</h1>
+      <span>Instagram автопродвижение для beauty/wellness</span>
+    </div>
+  </div>
+  <div class="status-badge">
+    <div class="dot"></div>
+    <span id="server-status">Подключение...</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Stats row -->
+  <div class="grid-3">
+    <div class="stat-card accent">
+      <div class="stat-label">Аккаунты</div>
+      <div class="stat-value" id="total-accounts">—</div>
+      <div class="stat-sub">активных в системе</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">Действий сегодня</div>
+      <div class="stat-value" id="actions-today">—</div>
+      <div class="stat-sub">лайки + подписки + сторис</div>
+    </div>
+    <div class="stat-card pink">
+      <div class="stat-label">Ошибок сегодня</div>
+      <div class="stat-value" id="errors-today">—</div>
+      <div class="stat-sub">блокировки и сбои</div>
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- Add account -->
+    <div class="card">
+      <div class="card-title"><span class="icon">👤</span> Добавить аккаунт</div>
+      <div class="form-group">
+        <label>Instagram логин</label>
+        <input type="text" id="ig-username" placeholder="username (без @)">
+      </div>
+      <div class="form-group">
+        <label>Пароль</label>
+        <input type="password" id="ig-password" placeholder="••••••••">
+      </div>
+      <div class="form-group">
+        <label>Прокси (необязательно)</label>
+        <input type="text" id="ig-proxy" placeholder="http://user:pass@host:port">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Режим</label>
+          <select id="ig-mode">
+            <option value="soft">Soft (безопасный)</option>
+            <option value="strict">Strict (минимум)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Возраст аккаунта (дней)</label>
+          <input type="number" id="ig-age" value="90" min="0">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addAccount()">➕ Добавить аккаунт</button>
+    </div>
+
+    <!-- Start task -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🚀</span> Запустить задачу</div>
+      <div class="form-group">
+        <label>Аккаунт</label>
+        <select id="task-account">
+          <option value="">— выберите аккаунт —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Геолокация (Instagram location ID)</label>
+        <input type="text" id="task-locations" placeholder="213 (Москва), через запятую">
+      </div>
+      <div class="form-group">
+        <label>Конкуренты (через запятую, без @)</label>
+        <input type="text" id="task-competitors" placeholder="competitor1, competitor2">
+      </div>
+      <div class="form-group">
+        <label>Максимум целей</label>
+        <input type="number" id="task-max" value="30" min="1" max="200">
+      </div>
+      <div class="form-row" style="margin-bottom:14px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="do-like" checked style="width:auto"> Лайки
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="do-follow" style="width:auto"> Подписки
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="do-stories" checked style="width:auto"> Сторис
+        </label>
+      </div>
+      <button class="btn btn-primary" onclick="startTask()">▶ Запустить</button>
+    </div>
+  </div>
+
+  <!-- Accounts list -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title" style="justify-content:space-between">
+      <span><span class="icon">📋</span> Аккаунты</span>
+      <button class="btn btn-secondary" style="width:auto;padding:6px 14px;font-size:12px" onclick="loadAccounts()">↻ Обновить</button>
+    </div>
+    <div id="accounts-list">
+      <div class="empty"><div class="empty-icon">👤</div>Аккаунты не добавлены</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- Active tasks -->
+    <div class="card">
+      <div class="card-title"><span class="icon">⚡</span> Активные задачи</div>
+      <div id="tasks-list">
+        <div class="empty"><div class="empty-icon">💤</div>Нет активных задач</div>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📜</span> Лог действий</div>
+      <div class="log-box" id="log-box">
+        <div class="log-line info">— Готов к работе —</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats per account -->
+  <div class="card" style="margin-top:20px">
+    <div class="card-title"><span class="icon">📊</span> Статистика за сегодня</div>
+    <div id="stats-content">
+      <div class="empty"><div class="empty-icon">📈</div>Выберите аккаунт для просмотра статистики</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast container -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+const API = '';  // same origin
+
+// ── Утилиты ──────────────────────────────────────────────────
+function log(msg, type='') {
+  const box = document.getElementById('log-box');
+  const d = document.createElement('div');
+  d.className = 'log-line ' + type;
+  const time = new Date().toLocaleTimeString('ru');
+  d.textContent = `[${time}] ${msg}`;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+}
+
+function toast(msg, type='success') {
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+async function api(method, path, body) {
+  try {
+    const opts = { method, headers: {'Content-Type':'application/json'} };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(API + path, opts);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
+    return data;
+  } catch(e) {
+    throw e;
+  }
+}
+
+function statusBadge(status) {
+  const map = {
+    active:    ['badge-green',  '● Активен'],
+    paused:    ['badge-yellow', '⏸ Пауза'],
+    banned:    ['badge-red',    '🚫 Бан'],
+    challenge: ['badge-red',    '⚠ Challenge'],
+    error:     ['badge-red',    '✕ Ошибка'],
+    running:   ['badge-green',  '▶ Работает'],
+    pending:   ['badge-yellow', '⏳ Ожидание'],
+    completed: ['badge-purple', '✓ Завершена'],
+    stopped:   ['badge-yellow', '■ Остановлена'],
+    failed:    ['badge-red',    '✕ Ошибка'],
+  };
+  const [cls, label] = map[status] || ['badge-purple', status];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+// ── Healthcheck ──────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const d = await api('GET', '/health');
+    document.getElementById('server-status').textContent = 'Онлайн v' + d.version;
+    log('Сервер онлайн, версия ' + d.version, 'ok');
+  } catch {
+    document.getElementById('server-status').textContent = 'Недоступен';
+    document.querySelector('.status-badge').style.background = 'rgba(239,68,68,.12)';
+    document.querySelector('.dot').style.background = '#ef4444';
+  }
+}
+
+// ── Аккаунты ─────────────────────────────────────────────────
+async function loadAccounts() {
+  try {
+    const accounts = await api('GET', '/accounts');
+    document.getElementById('total-accounts').textContent = accounts.length;
+
+    const sel = document.getElementById('task-account');
+    sel.innerHTML = '<option value="">— выберите аккаунт —</option>';
+    accounts.forEach(a => {
+      sel.innerHTML += `<option value="${a.id}">@${a.username}</option>`;
+    });
+
+    const list = document.getElementById('accounts-list');
+    if (!accounts.length) {
+      list.innerHTML = '<div class="empty"><div class="empty-icon">👤</div>Аккаунты не добавлены</div>';
+      return;
+    }
+    list.innerHTML = accounts.map(a => `
+      <div class="account-item">
+        <div class="account-info">
+          <div class="avatar">${a.username[0].toUpperCase()}</div>
+          <div>
+            <div class="account-name">@${a.username}</div>
+            <div class="account-meta">Режим: ${a.safety_mode} · Возраст: ${a.account_age_days} дн · Прокси: ${a.proxy_set ? '✓' : '✗'}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          ${statusBadge(a.status)}
+          <button class="btn btn-secondary" style="width:auto;padding:6px 12px;font-size:12px" onclick="loadStats(${a.id})">📊</button>
+        </div>
+      </div>
+    `).join('');
+
+    // Загружаем статистику первого аккаунта
+    if (accounts.length) loadStats(accounts[0].id);
+
+  } catch(e) {
+    log('Ошибка загрузки аккаунтов: ' + e.message, 'err');
+  }
+}
+
+async function addAccount() {
+  const username = document.getElementById('ig-username').value.trim();
+  const password = document.getElementById('ig-password').value;
+  const proxy    = document.getElementById('ig-proxy').value.trim();
+  const mode     = document.getElementById('ig-mode').value;
+  const age      = parseInt(document.getElementById('ig-age').value) || 0;
+
+  if (!username || !password) { toast('Введите логин и пароль', 'error'); return; }
+
+  try {
+    const body = { username, password, safety_mode: mode, account_age_days: age };
+    if (proxy) body.proxy = proxy;
+    await api('POST', '/accounts', body);
+    toast(`Аккаунт @${username} добавлен`);
+    log(`Аккаунт @${username} добавлен`, 'ok');
+    document.getElementById('ig-username').value = '';
+    document.getElementById('ig-password').value = '';
+    document.getElementById('ig-proxy').value = '';
+    await loadAccounts();
+  } catch(e) {
+    toast('Ошибка: ' + e.message, 'error');
+    log('Ошибка добавления: ' + e.message, 'err');
+  }
+}
+
+// ── Задачи ───────────────────────────────────────────────────
+async function startTask() {
+  const accountId = parseInt(document.getElementById('task-account').value);
+  const locRaw    = document.getElementById('task-locations').value.trim();
+  const compRaw   = document.getElementById('task-competitors').value.trim();
+  const maxT      = parseInt(document.getElementById('task-max').value) || 30;
+  const doLike    = document.getElementById('do-like').checked;
+  const doFollow  = document.getElementById('do-follow').checked;
+  const doStories = document.getElementById('do-stories').checked;
+
+  if (!accountId) { toast('Выберите аккаунт', 'error'); return; }
+
+  const locationIds = locRaw ? locRaw.split(',').map(x=>parseInt(x.trim())).filter(Boolean) : [];
+  const competitors = compRaw ? compRaw.split(',').map(x=>x.trim().replace('@','')).filter(Boolean) : [];
+
+  if (!locationIds.length && !competitors.length) {
+    toast('Укажите геолокацию или конкурентов', 'error'); return;
+  }
+
+  try {
+    const task = await api('POST', '/tasks/start', {
+      account_id: accountId,
+      location_ids: locationIds,
+      competitor_usernames: competitors,
+      do_like: doLike,
+      do_follow: doFollow,
+      do_view_stories: doStories,
+      max_targets: maxT,
+    });
+    toast(`Задача #${task.id} запущена`);
+    log(`Задача #${task.id} запущена для аккаунта #${accountId}`, 'ok');
+    loadTasks(task.id);
+  } catch(e) {
+    toast('Ошибка: ' + e.message, 'error');
+    log('Ошибка запуска: ' + e.message, 'err');
+  }
+}
+
+async function stopTask(taskId) {
+  try {
+    await api('POST', `/tasks/${taskId}/stop`);
+    toast(`Задача #${taskId} остановлена`);
+    log(`Задача #${taskId} остановлена`, 'info');
+    loadTasks();
+  } catch(e) {
+    toast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+let _watchedTaskId = null;
+function loadTasks(watchId) {
+  if (watchId) _watchedTaskId = watchId;
+  if (!_watchedTaskId) return;
+
+  api('GET', `/tasks/${_watchedTaskId}/status`).then(task => {
+    const list = document.getElementById('tasks-list');
+    list.innerHTML = `
+      <div class="account-item">
+        <div class="account-info">
+          <div class="avatar" style="background:linear-gradient(135deg,#22c55e,#06b6d4)">#${task.id}</div>
+          <div>
+            <div class="account-name">Задача #${task.id}</div>
+            <div class="account-meta">
+              ❤ ${task.likes_done} лайков &nbsp;·&nbsp;
+              👁 ${task.story_views_done} сторис &nbsp;·&nbsp;
+              ➕ ${task.follows_done} подписок
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          ${statusBadge(task.status)}
+          ${task.status === 'running' || task.status === 'pending'
+            ? `<button class="btn btn-danger" style="width:auto;padding:6px 12px;font-size:12px" onclick="stopTask(${task.id})">■ Стоп</button>`
+            : ''}
+        </div>
+      </div>`;
+  }).catch(() => {});
+}
+
+// ── Статистика ───────────────────────────────────────────────
+async function loadStats(accountId) {
+  try {
+    const s = await api('GET', `/stats/${accountId}`);
+    document.getElementById('actions-today').textContent = s.total_actions;
+    document.getElementById('errors-today').textContent  = s.total_errors;
+
+    function bar(label, done, limit) {
+      const pct = limit > 0 ? Math.min(100, Math.round(done/limit*100)) : 0;
+      return `<div class="progress-wrap">
+        <div class="progress-label"><span>${label}</span><span>${done} / ${limit}</span></div>
+        <div class="progress"><div class="progress-fill" style="width:${pct}%"></div></div>
+      </div>`;
+    }
+
+    document.getElementById('stats-content').innerHTML = `
+      <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Аккаунт #${accountId} · ${s.date}</div>
+      ${bar('❤ Лайки', s.likes, s.likes_limit)}
+      ${bar('➕ Подписки', s.follows, s.follows_limit)}
+      ${bar('👁 Просмотры сторис', s.story_views, s.story_views_limit)}
+      ${bar('➖ Отписки', s.unfollows, s.unfollows_limit)}
+      <div style="margin-top:14px;padding:10px 14px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--muted)">
+        ⚠ ${s.warning}
+      </div>`;
+  } catch(e) {
+    log('Ошибка загрузки статистики: ' + e.message, 'err');
+  }
+}
+
+// ── Init & polling ────────────────────────────────────────────
+checkHealth();
+loadAccounts();
+setInterval(() => {
+  loadAccounts();
+  if (_watchedTaskId) loadTasks();
+}, 15000);  // обновляем каждые 15 сек
+</script>
+</body>
+</html>

@@ -24,6 +24,8 @@ import os
 import structlog
 import yaml
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from core.crypto import encrypt_password
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
@@ -64,6 +66,11 @@ def create_app() -> FastAPI:
         allow_headers=["Content-Type", "Authorization"],
         allow_credentials=True,
     )
+
+    # Статические файлы (дашборд)
+    _static = os.path.join(os.path.dirname(__file__), "..", "static")
+    if os.path.isdir(_static):
+        app.mount("/static", StaticFiles(directory=_static), name="static")
 
     @app.on_event("startup")
     async def startup():
@@ -173,6 +180,13 @@ class HealthResponse(BaseModel):
 # ──────────────────────────────────────────────────────────────────
 # Healthcheck
 # ──────────────────────────────────────────────────────────────────
+
+@app.get("/", include_in_schema=False)
+def dashboard():
+    """Главная страница — визуальный дашборд."""
+    _index = os.path.join(os.path.dirname(__file__), "..", "static", "index.html")
+    return FileResponse(_index)
+
 
 @app.get("/health", response_model=HealthResponse, tags=["system"])
 def health():
