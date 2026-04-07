@@ -1,0 +1,58 @@
+version: "3.9"
+
+# =============================================================
+# MassGrowth SaaS — docker-compose
+# Запуск: docker compose up --build
+# =============================================================
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: massgrowth_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # SQLite БД и логи хранятся на хосте
+      - ./data:/app/data
+      - ./logs:/app/logs
+      # Config монтируем для hot-reload без пересборки
+      - ./config.yaml:/app/config.yaml:ro
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite:///./data/massgrowth.db
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - massgrowth_net
+
+  # ─── Опционально: pgAdmin для визуализации БД ───────────────
+  # Раскомментировать при миграции на PostgreSQL
+  # db:
+  #   image: postgres:16-alpine
+  #   container_name: massgrowth_db
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: massgrowth
+  #     POSTGRES_USER: ${POSTGRES_USER:-massgrowth}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+  #   volumes:
+  #     - pg_data:/var/lib/postgresql/data
+  #   networks:
+  #     - massgrowth_net
+
+networks:
+  massgrowth_net:
+    driver: bridge
+
+volumes:
+  # pg_data:  # раскомментировать при переходе на PostgreSQL

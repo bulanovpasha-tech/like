@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "app.py"
+    }
+  ],
+  "env": {
+    "LOG_LEVEL": "INFO"
+  },
+  "crons": [
+    {
+      "path": "/scheduler/daily-reset",
+      "schedule": "5 0 * * *"
+    },
+    {
+      "path": "/scheduler/resume-accounts",
+      "schedule": "*/30 * * * *"
+    }
+  ]
+}

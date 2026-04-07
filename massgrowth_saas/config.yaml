@@ -1,0 +1,121 @@
+# =============================================================
+# MassGrowth SaaS — основная конфигурация
+# Все лимиты настраиваемые. Хардкод в коде запрещён.
+# =============================================================
+
+app:
+  name: "MassGrowth SaaS"
+  version: "0.1.0"
+  debug: false
+  log_level: "INFO"           # DEBUG | INFO | WARNING | ERROR
+  log_dir: "logs"
+  log_format: "jsonl"         # jsonl | csv
+
+# ----------------------------------------------------------
+# Режим безопасности: soft — консервативно, strict — минимум
+# ----------------------------------------------------------
+safety_mode: "soft"           # soft | strict
+
+limits:
+  soft:
+    likes_per_day: 150
+    follows_per_day: 30
+    story_views_per_day: 60
+    unfollows_per_day: 30
+    comments_per_day: 5       # TODO: модуль комментариев
+    dm_per_day: 0             # TODO: модуль автодирект
+  strict:
+    likes_per_day: 50
+    follows_per_day: 10
+    story_views_per_day: 30
+    unfollows_per_day: 10
+    comments_per_day: 0
+    dm_per_day: 0
+
+# Возраст аккаунта → множитель лимитов (дни → коэффициент)
+account_age_multiplier:
+  0:   0.2   # новый аккаунт (< 7 дней) — очень осторожно
+  7:   0.4
+  30:  0.7
+  90:  1.0   # «зрелый» аккаунт
+
+# ----------------------------------------------------------
+# Паузы между действиями (секунды)
+# ----------------------------------------------------------
+delays:
+  action_min: 18
+  action_max: 90
+  extra_delay_chance: 0.30    # 30% шанс дополнительной паузы
+  extra_delay_min: 45
+  extra_delay_max: 180
+  # Пауза после блокировки / 429
+  ban_pause_min_hours: 2
+  ban_pause_max_hours: 24
+  # Пауза между сессиями одного аккаунта
+  session_pause_min_minutes: 30
+  session_pause_max_minutes: 120
+
+# ----------------------------------------------------------
+# Фильтрация аудитории
+# ----------------------------------------------------------
+audience_filter:
+  min_followers: 50
+  max_followers: 3000
+  require_avatar: true
+  require_bio: false
+  require_recent_story: true
+  recent_story_days: 3
+  exclude_business: true
+  exclude_verified: false
+  exclude_private: true
+  min_posts: 3
+
+# ----------------------------------------------------------
+# Геолокации и ниши (используются в parser.py)
+# ----------------------------------------------------------
+locations:
+  - name: "Moscow"
+    id: 213     # Instagram location ID
+  - name: "Saint Petersburg"
+    id: 2        # TODO: уточнить real IDs через API
+  - name: "Yekaterinburg"
+    id: 11162
+
+niches:
+  - "маникюр"
+  - "педикюр"
+  - "брови"
+  - "ресницы"
+  - "массаж"
+  - "косметолог"
+  - "парикмахер"
+  - "nail"
+  - "beauty"
+  - "spa"
+  - "wellness"
+
+# ----------------------------------------------------------
+# Прокси (1 прокси = 1 аккаунт)
+# ----------------------------------------------------------
+proxies:
+  rotation_on_error: true
+  max_errors_before_rotate: 3
+  # Список прокси берётся из .env или переопределяется здесь
+  # Формат: "http://user:pass@host:port"
+  list: []
+
+# ----------------------------------------------------------
+# Планировщик
+# ----------------------------------------------------------
+scheduler:
+  daily_reset_time: "00:05"    # UTC время сброса суточных лимитов
+  task_check_interval_seconds: 60
+  max_concurrent_accounts: 3   # TODO: масштабировать при росте
+
+# ----------------------------------------------------------
+# Уведомления (TODO: Telegram-бот)
+# ----------------------------------------------------------
+notifications:
+  enabled: false
+  telegram_bot_token: ""
+  telegram_chat_id: ""
