@@ -28,3 +28,5 @@ requests==2.31.0
 
 # ─── Utils ───────────────────────────────────────────────────────
 python-multipart==0.0.9    # для FastAPI form data
+aiofiles==23.2.1           # для FileResponse (статические файлы)
+psycopg2-binary==2.9.9     # PostgreSQL драйвер

@@ -24,7 +24,7 @@ import os
 import structlog
 import yaml
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from core.crypto import encrypt_password
 from fastapi.middleware.cors import CORSMiddleware
@@ -184,8 +184,12 @@ class HealthResponse(BaseModel):
 @app.get("/", include_in_schema=False)
 def dashboard():
     """Главная страница — визуальный дашборд."""
-    _index = os.path.join(os.path.dirname(__file__), "..", "static", "index.html")
-    return FileResponse(_index)
+    _index = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static", "index.html")
+    try:
+        with open(_index, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Dashboard not found</h1><p>Path: " + _index + "</p>")
 
 
 @app.get("/health", response_model=HealthResponse, tags=["system"])
