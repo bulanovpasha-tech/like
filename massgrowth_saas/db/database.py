@@ -20,6 +20,13 @@ load_dotenv()
 # ------------------------------------------------------------------
 DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./data/massgrowth.db")
 
+# Neon / Supabase отдают URL с префиксом "postgres://" или "postgresql://"
+# SQLAlchemy с psycopg2 требует "postgresql+psycopg2://"
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+elif DATABASE_URL.startswith("postgresql://") and "+psycopg2" not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+
 # Для SQLite — создаём директорию автоматически
 if DATABASE_URL.startswith("sqlite"):
     db_path = DATABASE_URL.replace("sqlite:///", "")
