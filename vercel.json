@@ -11,18 +11,5 @@
       "src": "/(.*)",
       "dest": "app.py"
     }
-  ],
-  "env": {
-    "LOG_LEVEL": "INFO"
-  },
-  "crons": [
-    {
-      "path": "/scheduler/daily-reset",
-      "schedule": "5 0 * * *"
-    },
-    {
-      "path": "/scheduler/resume-accounts",
-      "schedule": "*/30 * * * *"
-    }
   ]
 }

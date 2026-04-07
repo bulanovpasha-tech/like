@@ -1,42 +1,48 @@
 """
 app.py — точка входа для Vercel serverless.
-
-Vercel импортирует объект `app` из этого файла и обслуживает HTTP-запросы.
-
-Ограничения Vercel (serverless):
-  - Нет постоянных фоновых процессов → APScheduler не запускается.
-  - SQLite хранится в /tmp (эфемерный, сбрасывается при cold start).
-  - Таймаут функции: 10 сек (hobby) / 60 сек (pro).
-  - Promotion loop (long-running) запускается через /run-task endpoint
-    который триггерится Vercel Cron (vercel.json → crons).
-
-Переменные окружения — добавить в Vercel Dashboard → Settings → Environment Variables:
-  SECRET_KEY      (обязательно, минимум 16 символов)
-  ALLOWED_ORIGINS (например: https://your-frontend.vercel.app)
-  LOG_LEVEL       (INFO)
+Vercel ищет объект `app` (ASGI) в этом файле.
 """
 
 from __future__ import annotations
 
+import importlib
 import os
 import sys
 
-# Добавляем massgrowth_saas в Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "massgrowth_saas"))
+# Абсолютный путь к massgrowth_saas — вставляем первым,
+# чтобы избежать конфликта с Vercel-специфичной директорией api/
+_ROOT = os.path.dirname(os.path.abspath(__file__))
+_SAAS = os.path.join(_ROOT, "massgrowth_saas")
+if _SAAS not in sys.path:
+    sys.path.insert(0, _SAAS)
 
-# SQLite на Vercel: только /tmp доступен для записи
+# SQLite на Vercel — только /tmp доступен для записи
 os.environ.setdefault("DATABASE_URL", "sqlite:////tmp/massgrowth.db")
 
-# Дефолтный SECRET_KEY для демо — ОБЯЗАТЕЛЬНО переопределить в Vercel
+# Дефолтный ключ — ОБЯЗАТЕЛЬНО переопределить в Vercel Dashboard → Environment Variables
 os.environ.setdefault("SECRET_KEY", "vercel-demo-key-CHANGE-IN-DASHBOARD")
+os.environ.setdefault("LOG_LEVEL", "INFO")
+os.environ.setdefault("ALLOWED_ORIGINS", "*")
 
-# Загружаем .env (если есть — локальная разработка)
-from dotenv import load_dotenv
-load_dotenv()
+# Загружаем .env (только при локальной разработке)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
-# Создаём таблицы при cold start
-from db.database import create_tables
+# Явный импорт через importlib, чтобы избежать конфликта имён модуля `api`
+_main_spec = importlib.util.spec_from_file_location(
+    "massgrowth_api",
+    os.path.join(_SAAS, "api", "main.py"),
+)
+_main_mod = importlib.util.module_from_spec(_main_spec)
+sys.modules["massgrowth_api"] = _main_mod
+_main_spec.loader.exec_module(_main_mod)
+
+# Создаём таблицы БД при cold start
+from db.database import create_tables  # noqa: E402
 create_tables()
 
-# Импортируем FastAPI app — Vercel ищет именно объект `app`
-from api.main import app  # noqa: F401 — экспортируется для Vercel
+# Объект app — Vercel ASGI handler
+app = _main_mod.app
