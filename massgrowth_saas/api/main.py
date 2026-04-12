@@ -301,7 +301,7 @@ def get_account(account_id: int, db: Annotated[Session, Depends(get_db)]):
     )
 
 
-@app.post("/accounts/session-login", response_model=AccountResponse, status_code=status.HTTP_201_CREATED, tags=["accounts"])
+@app.post("/accounts/session-login", status_code=status.HTTP_201_CREATED, tags=["accounts"])
 def session_login(
     payload: SessionLoginRequest,
     db: Annotated[Session, Depends(get_db)],
@@ -313,67 +313,78 @@ def session_login(
     from fastapi.responses import JSONResponse
     from instagrapi import Client
 
-    username = payload.username.strip().lstrip("@")
-    sessionid = payload.sessionid.strip()
-    proxy = payload.proxy
-    mode = payload.safety_mode
-    age = payload.account_age_days
-
-    client = Client()
-    if proxy:
-        client.set_proxy(proxy)
-    client.request_timeout = 30
-    client.delay_range = [1, 3]
-
     try:
-        client.login_by_sessionid(sessionid)
-        client.get_timeline_feed()  # проверяем сессию
-    except Exception as e:
-        logger.warning("session_login_failed", username=username, error=str(e))
+        username = payload.username.strip().lstrip("@")
+        sessionid = payload.sessionid.strip()
+        proxy = payload.proxy
+        mode = payload.safety_mode
+        age = payload.account_age_days
+
+        client = Client()
+        if proxy:
+            client.set_proxy(proxy)
+        client.request_timeout = 30
+        client.delay_range = [1, 3]
+
+        try:
+            client.login_by_sessionid(sessionid)
+            client.get_timeline_feed()  # проверяем сессию
+        except Exception as e:
+            logger.warning("session_login_failed", username=username, error=str(e))
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "detail": f"Неверная сессия: {type(e).__name__}. Убедись, что sessionid актуальный.",
+                },
+            )
+
+        settings = client.get_settings()
+        ig_user_id = str(client.user_id) if client.user_id else None
+
+        account = db.query(Account).filter_by(username=username).first()
+        if account:
+            account.session_data = json.dumps(settings)
+            account.ig_user_id = ig_user_id
+            account.status = AccountStatus.ACTIVE
+            account.last_error = None
+            account.proxy = proxy
+            account.safety_mode = mode
+        else:
+            account = Account(
+                username=username,
+                session_data=json.dumps(settings),
+                ig_user_id=ig_user_id,
+                proxy=proxy,
+                safety_mode=mode,
+                account_age_days=age,
+                status=AccountStatus.ACTIVE,
+            )
+            db.add(account)
+
+        db.commit()
+        db.refresh(account)
+        logger.info("session_login_success", username=username, ig_user_id=ig_user_id)
+
         return JSONResponse(
-            status_code=400,
+            status_code=201,
             content={
-                "detail": f"Неверная сессия: {type(e).__name__}. Убедись, что sessionid актуальный.",
+                "id": account.id,
+                "username": account.username,
+                "status": account.status.value if hasattr(account.status, 'value') else str(account.status),
+                "safety_mode": account.safety_mode,
+                "proxy_set": bool(account.proxy),
+                "account_age_days": account.account_age_days,
+                "created_at": account.created_at.isoformat(),
+                "last_error": account.last_error,
+                "warning": SAFETY_WARNING,
             },
         )
-
-    settings = client.get_settings()
-    ig_user_id = str(client.user_id) if client.user_id else None
-
-    account = db.query(Account).filter_by(username=username).first()
-    if account:
-        account.session_data = json.dumps(settings)
-        account.ig_user_id = ig_user_id
-        account.status = AccountStatus.ACTIVE
-        account.last_error = None
-        account.proxy = proxy
-        account.safety_mode = mode
-    else:
-        account = Account(
-            username=username,
-            session_data=json.dumps(settings),
-            ig_user_id=ig_user_id,
-            proxy=proxy,
-            safety_mode=mode,
-            account_age_days=age,
-            status=AccountStatus.ACTIVE,
+    except Exception as e:
+        logger.exception("session_login_unexpected_error")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Внутренняя ошибка сервера: {str(e)}"},
         )
-        db.add(account)
-
-    db.commit()
-    db.refresh(account)
-    logger.info("session_login_success", username=username, ig_user_id=ig_user_id)
-
-    return AccountResponse(
-        id=account.id,
-        username=account.username,
-        status=account.status,
-        safety_mode=account.safety_mode,
-        proxy_set=bool(account.proxy),
-        account_age_days=account.account_age_days,
-        created_at=account.created_at,
-        last_error=account.last_error,
-    )
 
 
 @app.post("/accounts/{account_id}/challenge", tags=["accounts"])

@@ -40,9 +40,12 @@ _main_mod = importlib.util.module_from_spec(_main_spec)
 sys.modules["massgrowth_api"] = _main_mod
 _main_spec.loader.exec_module(_main_mod)
 
-# Создаём таблицы БД при cold start
-from db.database import create_tables  # noqa: E402
-create_tables()
+# Создаём таблицы БД при cold start (игнорируем ошибки — БД может быть недоступна)
+try:
+    from db.database import create_tables  # noqa: E402
+    create_tables()
+except Exception as e:
+    print(f"Warning: create_tables failed: {e}")
 
 # Объект app — Vercel ASGI handler
 app = _main_mod.app
