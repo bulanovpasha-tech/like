@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv\\scripts\\python.exe)",
+      "Bash(.venv\\scripts\\pip.exe *)",
+      "Bash(.venv\\scripts\\python.exe *)",
+      "Bash(timeout *)",
+      "Bash(type *)",
+      "Bash(tasklist *)",
+      "Bash(curl *)",
+      "Bash(python *)",
+      "Bash(dir *)",
+      "Bash(start *)",
+      "Bash(vercel *)",
+      "Bash(npm install *)",
+      "Bash(taskkill *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  },
+  "$version": 3
+}

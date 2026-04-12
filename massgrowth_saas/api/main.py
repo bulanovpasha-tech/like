@@ -119,6 +119,14 @@ class TaskCreate(BaseModel):
         return [u.lstrip("@").strip() for u in v]
 
 
+class SessionLoginRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=64)
+    sessionid: str = Field(..., min_length=1)
+    proxy: str | None = Field(default=None)
+    safety_mode: str = Field(default="soft", pattern="^(soft|strict)$")
+    account_age_days: int = Field(default=0, ge=0)
+
+
 # ──────────────────────────────────────────────────────────────────
 # Pydantic схемы ответов
 # ──────────────────────────────────────────────────────────────────
@@ -135,6 +143,7 @@ class AccountResponse(WarningMixin):
     proxy_set: bool
     account_age_days: int
     created_at: datetime
+    last_error: str | None = None
 
     class Config:
         from_attributes = True
@@ -251,6 +260,7 @@ def add_account(
         proxy_set=bool(account.proxy),
         account_age_days=account.account_age_days,
         created_at=account.created_at,
+        last_error=account.last_error,
     )
 
 
@@ -267,6 +277,7 @@ def list_accounts(db: Annotated[Session, Depends(get_db)]):
             proxy_set=bool(a.proxy),
             account_age_days=a.account_age_days,
             created_at=a.created_at,
+            last_error=a.last_error,
         )
         for a in accounts
     ]
@@ -286,7 +297,121 @@ def get_account(account_id: int, db: Annotated[Session, Depends(get_db)]):
         proxy_set=bool(account.proxy),
         account_age_days=account.account_age_days,
         created_at=account.created_at,
+        last_error=account.last_error,
     )
+
+
+@app.post("/accounts/session-login", response_model=AccountResponse, status_code=status.HTTP_201_CREATED, tags=["accounts"])
+def session_login(
+    payload: SessionLoginRequest,
+    db: Annotated[Session, Depends(get_db)],
+):
+    """
+    Добавляет или обновляет аккаунт используя sessionid из браузера.
+    Не требует пароля — работает через cookie сессии.
+    """
+    from fastapi.responses import JSONResponse
+    from instagrapi import Client
+
+    username = payload.username.strip().lstrip("@")
+    sessionid = payload.sessionid.strip()
+    proxy = payload.proxy
+    mode = payload.safety_mode
+    age = payload.account_age_days
+
+    client = Client()
+    if proxy:
+        client.set_proxy(proxy)
+    client.request_timeout = 30
+    client.delay_range = [1, 3]
+
+    try:
+        client.login_by_sessionid(sessionid)
+        client.get_timeline_feed()  # проверяем сессию
+    except Exception as e:
+        logger.warning("session_login_failed", username=username, error=str(e))
+        return JSONResponse(
+            status_code=400,
+            content={
+                "detail": f"Неверная сессия: {type(e).__name__}. Убедись, что sessionid актуальный.",
+            },
+        )
+
+    settings = client.get_settings()
+    ig_user_id = str(client.user_id) if client.user_id else None
+
+    account = db.query(Account).filter_by(username=username).first()
+    if account:
+        account.session_data = json.dumps(settings)
+        account.ig_user_id = ig_user_id
+        account.status = AccountStatus.ACTIVE
+        account.last_error = None
+        account.proxy = proxy
+        account.safety_mode = mode
+    else:
+        account = Account(
+            username=username,
+            session_data=json.dumps(settings),
+            ig_user_id=ig_user_id,
+            proxy=proxy,
+            safety_mode=mode,
+            account_age_days=age,
+            status=AccountStatus.ACTIVE,
+        )
+        db.add(account)
+
+    db.commit()
+    db.refresh(account)
+    logger.info("session_login_success", username=username, ig_user_id=ig_user_id)
+
+    return AccountResponse(
+        id=account.id,
+        username=account.username,
+        status=account.status,
+        safety_mode=account.safety_mode,
+        proxy_set=bool(account.proxy),
+        account_age_days=account.account_age_days,
+        created_at=account.created_at,
+        last_error=account.last_error,
+    )
+
+
+@app.post("/accounts/{account_id}/challenge", tags=["accounts"])
+def submit_challenge_code(
+    account_id: int,
+    payload: dict,
+    db: Annotated[Session, Depends(get_db)],
+):
+    """
+    Завершает логин после ввода кода из письма Instagram.
+    Body: {"code": "123456"}
+    """
+    code = str(payload.get("code", "")).strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="code is required")
+
+    from core.session import SessionManager
+    try:
+        SessionManager.complete_challenge(account_id=account_id, code=code, db=db)
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {"ok": True, "message": "Login completed successfully"}
+
+
+@app.delete("/accounts/{account_id}", tags=["accounts"])
+def delete_account(account_id: int, db: Annotated[Session, Depends(get_db)]):
+    """Удаляет аккаунт и связанные данные."""
+    account = db.query(Account).filter_by(id=account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    db.query(ActionLog).filter_by(account_id=account_id).delete()
+    db.query(Task).filter_by(account_id=account_id).delete()
+    db.query(DailyLimit).filter_by(account_id=account_id).delete()
+    db.delete(account)
+    db.commit()
+    logger.info("account_deleted", account_id=account_id)
+    return {"ok": True}
 
 
 # ──────────────────────────────────────────────────────────────────

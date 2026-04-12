@@ -1,32 +1,16 @@
-# ─── Web ─────────────────────────────────────────────────────────
-fastapi==0.111.0
-uvicorn[standard]==0.29.0
-pydantic==2.7.1
-
-# ─── Instagram ───────────────────────────────────────────────────
-instagrapi==2.1.2
-
-# ─── Database ────────────────────────────────────────────────────
-sqlalchemy==2.0.30
-
-# ─── Scheduler ───────────────────────────────────────────────────
-apscheduler==3.10.4
-
-# ─── Config / Env ────────────────────────────────────────────────
-python-dotenv==1.0.1
-pyyaml==6.0.1
-
-# ─── Logging ─────────────────────────────────────────────────────
-structlog==24.1.0
-
-# ─── Crypto (TODO: Fernet password encryption) ───────────────────
-cryptography==42.0.7
-
-# ─── HTTP (используется instagrapi) ──────────────────────────────
-httpx==0.27.0
-requests==2.31.0
-
-# ─── Utils ───────────────────────────────────────────────────────
-python-multipart==0.0.9    # для FastAPI form data
-aiofiles==23.2.1           # для FileResponse (статические файлы)
-psycopg2-binary==2.9.9     # PostgreSQL драйвер
+fastapi
+uvicorn[standard]
+pydantic
+instagrapi
+sqlalchemy
+apscheduler
+python-dotenv
+pyyaml
+structlog
+cryptography
+httpx
+requests[socks]
+PySocks
+python-multipart
+aiofiles
+psycopg2-binary

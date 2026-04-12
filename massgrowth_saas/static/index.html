@@ -175,6 +175,14 @@
         </div>
       </div>
       <button class="btn btn-primary" onclick="addAccount()">➕ Добавить аккаунт</button>
+      <hr class="divider">
+      <div class="card-title" style="margin-top:4px"><span class="icon">🍪</span> Войти через sessionid</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">F12 → Application → Cookies → instagram.com → sessionid</p>
+      <div class="form-group">
+        <label>Session ID (из браузера)</label>
+        <input type="text" id="ig-sessionid" placeholder="58325678%3AaBcD...">
+      </div>
+      <button class="btn btn-secondary" onclick="loginBySession()">🔑 Войти по sessionid</button>
     </div>
 
     <!-- Start task -->
@@ -214,6 +222,24 @@
   </div>
 
   <!-- Accounts list -->
+  <!-- Challenge block — появляется когда Instagram требует код -->
+  <div class="card" id="challenge-block" style="margin-bottom:20px;display:none;border-color:rgba(245,158,11,.4)">
+    <div class="card-title"><span class="icon">📧</span> Instagram требует подтверждение</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px">
+      Instagram отправил код на вашу почту. Введите его ниже чтобы завершить вход.
+    </p>
+    <div style="display:flex;gap:10px;align-items:flex-end">
+      <div class="form-group" style="flex:1;margin:0">
+        <label>Код из письма Instagram</label>
+        <input type="text" id="challenge-code" placeholder="123456" maxlength="8" style="letter-spacing:4px;font-size:18px;text-align:center">
+      </div>
+      <button class="btn btn-primary" style="width:auto;padding:10px 20px" onclick="submitChallenge()">✓ Подтвердить</button>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:10px">
+      Не пришло письмо? Проверьте папку «Спам». Код действует несколько минут.
+    </p>
+  </div>
+
   <div class="card" style="margin-bottom:20px">
     <div class="card-title" style="justify-content:space-between">
       <span><span class="icon">📋</span> Аккаунты</span>
@@ -291,7 +317,7 @@ async function api(method, path, body) {
   }
 }
 
-function statusBadge(status) {
+function statusBadge(status, lastError) {
   const map = {
     active:    ['badge-green',  '● Активен'],
     paused:    ['badge-yellow', '⏸ Пауза'],
@@ -304,8 +330,13 @@ function statusBadge(status) {
     stopped:   ['badge-yellow', '■ Остановлена'],
     failed:    ['badge-red',    '✕ Ошибка'],
   };
-  const [cls, label] = map[status] || ['badge-purple', status];
-  return `<span class="badge ${cls}">${label}</span>`;
+  let [cls, label] = map[status] || ['badge-purple', status];
+  if (status === 'error' && lastError === 'IPBlocked') {
+    label = '🌐 Блок IP';
+  } else if (status === 'error' && lastError === 'BadPassword') {
+    label = '🔑 Неверный пароль';
+  }
+  return `<span class="badge ${cls}" title="${lastError || ''}">${label}</span>`;
 }
 
 // ── Healthcheck ──────────────────────────────────────────────
@@ -350,11 +381,23 @@ async function loadAccounts() {
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
-          ${statusBadge(a.status)}
+          ${statusBadge(a.status, a.last_error)}
           <button class="btn btn-secondary" style="width:auto;padding:6px 12px;font-size:12px" onclick="loadStats(${a.id})">📊</button>
+          <button class="btn btn-danger" style="width:auto;padding:6px 12px;font-size:12px" onclick="deleteAccount(${a.id},'${a.username}')">🗑</button>
         </div>
       </div>
     `).join('');
+
+    // Показываем блок challenge если есть аккаунт ожидающий кода
+    const challengeAcc = accounts.find(a => a.status === 'challenge');
+    const block = document.getElementById('challenge-block');
+    if (challengeAcc) {
+      _challengeAccountId = challengeAcc.id;
+      block.style.display = 'block';
+      log(`Аккаунт @${challengeAcc.username} ждёт кода из письма Instagram`, 'info');
+    } else {
+      block.style.display = 'none';
+    }
 
     // Загружаем статистику первого аккаунта
     if (accounts.length) loadStats(accounts[0].id);
@@ -386,6 +429,60 @@ async function addAccount() {
   } catch(e) {
     toast('Ошибка: ' + e.message, 'error');
     log('Ошибка добавления: ' + e.message, 'err');
+  }
+}
+
+async function loginBySession() {
+  const username  = document.getElementById('ig-username').value.trim();
+  const sessionid = document.getElementById('ig-sessionid').value.trim();
+  const proxy     = document.getElementById('ig-proxy').value.trim();
+  const mode      = document.getElementById('ig-mode').value;
+  const age       = parseInt(document.getElementById('ig-age').value) || 0;
+
+  if (!username || !sessionid) { toast('Введите логин и sessionid', 'error'); return; }
+
+  try {
+    const body = { username, sessionid, safety_mode: mode, account_age_days: age };
+    if (proxy) body.proxy = proxy;
+    const acc = await api('POST', '/accounts/session-login', body);
+    toast(`@${acc.username} авторизован через сессию!`);
+    log(`Аккаунт @${acc.username} добавлен через sessionid`, 'ok');
+    document.getElementById('ig-sessionid').value = '';
+    await loadAccounts();
+  } catch(e) {
+    toast('Ошибка: ' + e.message, 'error');
+    log('Ошибка session login: ' + e.message, 'err');
+  }
+}
+
+let _challengeAccountId = null;
+
+async function submitChallenge() {
+  const code = document.getElementById('challenge-code').value.trim();
+  if (!code) { toast('Введите код', 'error'); return; }
+  try {
+    await api('POST', `/accounts/${_challengeAccountId}/challenge`, { code });
+    toast('Вход выполнен!');
+    log('Challenge пройден, аккаунт авторизован', 'ok');
+    document.getElementById('challenge-block').style.display = 'none';
+    document.getElementById('challenge-code').value = '';
+    _challengeAccountId = null;
+    await loadAccounts();
+  } catch(e) {
+    toast('Ошибка: ' + e.message, 'error');
+    log('Ошибка challenge: ' + e.message, 'err');
+  }
+}
+
+async function deleteAccount(id, username) {
+  if (!confirm(`Удалить аккаунт @${username}? Это также удалит все задачи и логи.`)) return;
+  try {
+    await api('DELETE', `/accounts/${id}`);
+    toast(`Аккаунт @${username} удалён`);
+    log(`Аккаунт @${username} удалён`, 'info');
+    await loadAccounts();
+  } catch(e) {
+    toast('Ошибка: ' + e.message, 'error');
   }
 }
 
